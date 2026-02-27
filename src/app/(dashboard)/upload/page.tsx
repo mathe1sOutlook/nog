@@ -1,18 +1,21 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { parseProductionExcel, type ProductionParseResult } from '@/lib/etl/parsers/production-parser';
 import { parseRepasseCSV, type RepasseParseResult } from '@/lib/etl/parsers/repasse-parser';
 import { formatNumber, formatDateBR } from '@/lib/utils/formatting';
 
 type ParseStatus = 'idle' | 'parsing' | 'done' | 'error';
+type ConferenceStatus = 'idle' | 'uploading' | 'matching' | 'done' | 'error';
 
 export default function UploadPage() {
+  const router = useRouter();
   const [productionResult, setProductionResult] = useState<ProductionParseResult | null>(null);
   const [repasseResult, setRepasseResult] = useState<RepasseParseResult | null>(null);
   const [productionStatus, setProductionStatus] = useState<ParseStatus>('idle');
@@ -20,6 +23,8 @@ export default function UploadPage() {
   const [productionFile, setProductionFile] = useState<string>('');
   const [repasseFile, setRepasseFile] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [conferenceStatus, setConferenceStatus] = useState<ConferenceStatus>('idle');
+  const [conferenceProgress, setConferenceProgress] = useState<string>('');
 
   const handleProductionUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,6 +63,89 @@ export default function UploadPage() {
       setError(`Erro ao processar repasse: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     }
   }, []);
+
+  const handleStartConference = useCallback(async () => {
+    if (!productionResult || !repasseResult) return;
+
+    setConferenceStatus('uploading');
+    setConferenceProgress('Enviando dados de produção...');
+    setError('');
+
+    try {
+      // 1. Upload production records
+      const prodRes = await fetch('/api/upload/production', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: productionFile,
+          records: productionResult.records,
+          periodStart: productionResult.periodStart,
+          periodEnd: productionResult.periodEnd,
+        }),
+      });
+
+      if (!prodRes.ok) {
+        const data = await prodRes.json();
+        throw new Error(data.error || 'Falha ao enviar produção');
+      }
+
+      const { upload_id: productionUploadId } = await prodRes.json();
+
+      // 2. Upload repasse records
+      setConferenceProgress('Enviando dados de repasse...');
+      const repRes = await fetch('/api/upload/repasse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: repasseFile,
+          records: repasseResult.records,
+          periodStart: repasseResult.periodStart,
+          periodEnd: repasseResult.periodEnd,
+        }),
+      });
+
+      if (!repRes.ok) {
+        const data = await repRes.json();
+        throw new Error(data.error || 'Falha ao enviar repasse');
+      }
+
+      const { upload_id: repasseUploadId } = await repRes.json();
+
+      // 3. Create conference (matching + divergence detection)
+      setConferenceStatus('matching');
+      setConferenceProgress('Executando matching e detectando divergências...');
+
+      const confRes = await fetch('/api/conference/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          production_upload_id: productionUploadId,
+          repasse_upload_id: repasseUploadId,
+        }),
+      });
+
+      if (!confRes.ok) {
+        const data = await confRes.json();
+        throw new Error(data.error || 'Falha ao criar conferência');
+      }
+
+      const confData = await confRes.json();
+      setConferenceStatus('done');
+      setConferenceProgress(
+        `Conferência concluída: ${confData.total_matched} matches, ${confData.total_divergences} divergências`,
+      );
+
+      // Navigate to conference result
+      setTimeout(() => {
+        router.push(`/conference/${confData.session_id}`);
+      }, 1500);
+    } catch (err) {
+      setConferenceStatus('error');
+      setError(`Erro na conferência: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+    }
+  }, [productionResult, repasseResult, productionFile, repasseFile, router]);
+
+  const isConferenceRunning = conferenceStatus === 'uploading' || conferenceStatus === 'matching';
 
   return (
     <div className="space-y-6">
@@ -98,6 +186,7 @@ export default function UploadPage() {
                 accept=".xlsx,.xls"
                 className="hidden"
                 onChange={handleProductionUpload}
+                disabled={isConferenceRunning}
               />
             </label>
 
@@ -157,6 +246,7 @@ export default function UploadPage() {
                 accept=".csv"
                 className="hidden"
                 onChange={handleRepasseUpload}
+                disabled={isConferenceRunning}
               />
             </label>
 
@@ -192,14 +282,34 @@ export default function UploadPage() {
         <Card>
           <CardContent className="flex items-center justify-between p-6">
             <div>
-              <p className="font-medium">Dados prontos para conferência</p>
+              <p className="font-medium">
+                {conferenceStatus === 'done'
+                  ? 'Conferência concluída!'
+                  : 'Dados prontos para conferência'}
+              </p>
               <p className="text-sm text-muted-foreground">
-                {formatNumber(productionResult?.records.length ?? 0)} produção ×{' '}
-                {formatNumber(repasseResult?.records.length ?? 0)} repasse
+                {isConferenceRunning
+                  ? conferenceProgress
+                  : conferenceStatus === 'done'
+                    ? conferenceProgress
+                    : `${formatNumber(productionResult?.records.length ?? 0)} produção × ${formatNumber(repasseResult?.records.length ?? 0)} repasse`}
               </p>
             </div>
-            <Button size="lg">
-              Iniciar Conferência
+            <Button
+              size="lg"
+              onClick={handleStartConference}
+              disabled={isConferenceRunning || conferenceStatus === 'done'}
+            >
+              {isConferenceRunning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processando...
+                </>
+              ) : conferenceStatus === 'done' ? (
+                'Redirecionando...'
+              ) : (
+                'Iniciar Conferência'
+              )}
             </Button>
           </CardContent>
         </Card>
