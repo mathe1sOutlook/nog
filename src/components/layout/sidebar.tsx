@@ -7,11 +7,11 @@ import {
   Upload,
   GitCompare,
   Building2,
-  Settings,
   Receipt,
   Percent,
   Minus,
   ChevronLeft,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
@@ -117,12 +117,40 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      {sidebarOpen && (
-        <div className="border-t p-4">
-          <p className="text-xs text-muted-foreground">Dra. Luana Fontana</p>
-          <p className="text-xs text-muted-foreground">Otorrino DF</p>
-        </div>
-      )}
+      <div className="border-t p-2">
+        {sidebarOpen ? (
+          <div className="space-y-2 px-2 py-1">
+            <div>
+              <p className="text-xs text-muted-foreground">Dra. Luana Fontana</p>
+              <p className="text-xs text-muted-foreground">Otorrino DF</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login';
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mx-auto flex h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              window.location.href = '/login';
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
     </aside>
   );
 }
