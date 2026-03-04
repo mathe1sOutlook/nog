@@ -182,4 +182,9 @@
   .dark .soft-surface {
     @apply border-white/10 bg-white/5 shadow-lg shadow-black/20 backdrop-blur-xl;
   }
+
+  /* Mobile: ensure touch scroll works smoothly on chart containers */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }

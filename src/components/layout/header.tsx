@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
+import { NotificationBell } from '@/components/shared/notification-bell';
 
 const pathLabels: Record<string, string> = {
   '/': 'Dashboard',
@@ -89,6 +90,7 @@ export function Header() {
 
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-xs text-muted-foreground sm:block">{today}</span>
+          <NotificationBell />
           <ThemeToggle />
           {user && (
             <div className="flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-2 py-1 shadow-sm">

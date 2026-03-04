@@ -12,7 +12,8 @@ import { DivergenceByTypeChart, DivergenceByConvenioChart } from '@/components/d
 import { SeverityBadge } from '@/components/shared/severity-badge';
 import { DivergenceTypeBadge } from '@/components/shared/divergence-type-badge';
 import { formatBRL, formatDateBR } from '@/lib/utils/formatting';
-import { Download, ArrowLeft } from 'lucide-react';
+import { ExportMenu } from '@/components/shared/export-menu';
+import { ArrowLeft } from 'lucide-react';
 import type { ConferenceSession, Divergence, DivergenceType, Severity } from '@/lib/types/database';
 
 export default function ConferenceDetailPage() {
@@ -120,12 +121,38 @@ export default function ConferenceDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <a href={`/api/conference/${params.sessionId}/export`} download>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar CSV
-          </a>
-        </Button>
+        <ExportMenu
+          onExportCSV={() => {
+            window.open(`/api/conference/${params.sessionId}/export`, '_blank');
+          }}
+          onExportPDF={async () => {
+            const { exportPDF } = await import('@/lib/utils/export-pdf');
+            exportPDF({
+              title: session.name ?? 'Divergencias',
+              subtitle: `Producao: ${formatDateBR(session.production_period_start)} — ${formatDateBR(session.production_period_end)}`,
+              headers: ['Severidade', 'Tipo', 'Data', 'Paciente', 'Convenio', 'V. Esperado', 'V. Recebido', 'Diferenca', 'Status'],
+              rows: divergences.map((d) => [
+                d.severity, d.type, formatDateBR(d.service_date) ?? '', d.patient_name ?? '',
+                d.convenio_name ?? '', d.valor_esperado ?? '', d.valor_recebido ?? '',
+                d.diferenca ?? '', d.resolution_status,
+              ]),
+              filename: `divergencias-${params.sessionId.slice(0, 8)}`,
+            });
+          }}
+          onExportExcel={async () => {
+            const { exportExcel } = await import('@/lib/utils/export-excel');
+            exportExcel({
+              sheetName: 'Divergencias',
+              headers: ['Severidade', 'Tipo', 'Data', 'Paciente', 'Convenio', 'V. Esperado', 'V. Recebido', 'Diferenca', 'Status'],
+              rows: divergences.map((d) => [
+                d.severity, d.type, formatDateBR(d.service_date) ?? '', d.patient_name ?? '',
+                d.convenio_name ?? '', d.valor_esperado ?? '', d.valor_recebido ?? '',
+                d.diferenca ?? '', d.resolution_status,
+              ]),
+              filename: `divergencias-${params.sessionId.slice(0, 8)}`,
+            });
+          }}
+        />
       </div>
 
       {/* KPIs */}

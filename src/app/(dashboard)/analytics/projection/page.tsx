@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Calculator, TrendingUp, Minus, Percent } from 'lucide-react';
+import { ExportMenu } from '@/components/shared/export-menu';
 import { useProjectionData } from '@/lib/hooks/use-projection-data';
 import { useECharts } from '@/lib/hooks/use-echarts';
 import { useEChartsTheme } from '@/lib/hooks/use-echarts-theme';
@@ -121,14 +122,46 @@ export default function ProjectionPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="mb-1 flex items-center gap-2 text-primary">
-          <Calculator className="h-5 w-5" />
-          <h1 className="text-2xl font-bold tracking-tight">Projecao financeira</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-primary">
+            <Calculator className="h-5 w-5" />
+            <h1 className="text-2xl font-bold tracking-tight">Projecao financeira</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Projecao de repasse liquido para os proximos 3 meses com base na media ponderada.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Projecao de repasse liquido para os proximos 3 meses com base na media ponderada.
-        </p>
+        <ExportMenu
+          disabled={!data || data.projected.length === 0}
+          onExportPDF={async () => {
+            if (!data) return;
+            const { exportPDF } = await import('@/lib/utils/export-pdf');
+            exportPDF({
+              title: 'Projecao Financeira',
+              subtitle: `Taxa: ${data.taxRate.toFixed(1)}% | Deducoes: R$ ${data.deductions.toFixed(2)}`,
+              headers: ['Mes', 'Bruto Projetado', 'Liquido', 'Banda Inferior', 'Banda Superior'],
+              rows: data.projected.map((r: { month: string; projected_value: number; net_value: number; net_lower: number; net_upper: number }) => [
+                new Date(r.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+                r.projected_value, r.net_value, r.net_lower, r.net_upper,
+              ]),
+              filename: 'projecao-financeira',
+            });
+          }}
+          onExportExcel={async () => {
+            if (!data) return;
+            const { exportExcel } = await import('@/lib/utils/export-excel');
+            exportExcel({
+              sheetName: 'Projecao',
+              headers: ['Mes', 'Bruto Projetado', 'Liquido', 'Banda Inferior', 'Banda Superior'],
+              rows: data.projected.map((r: { month: string; projected_value: number; net_value: number; net_lower: number; net_upper: number }) => [
+                new Date(r.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+                r.projected_value, r.net_value, r.net_lower, r.net_upper,
+              ]),
+              filename: 'projecao-financeira',
+            });
+          }}
+        />
       </div>
 
       {!isLoading && data && (

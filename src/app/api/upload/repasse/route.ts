@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/supabase/tables';
 import { requireAuth } from '@/lib/supabase/session';
+import { createNotification } from '@/lib/utils/create-notification';
 import type { ParsedRepasseRecord } from '@/lib/etl/parsers/repasse-parser';
 
 interface UploadRepasseBody {
@@ -98,6 +99,15 @@ export async function POST(request: NextRequest) {
         processed_at: new Date().toISOString(),
       })
       .eq('id', upload.id);
+
+    await createNotification(supabase, {
+      doctorId: user.doctorId,
+      clinicId,
+      type: 'upload_completed',
+      title: 'Upload de repasse concluido',
+      message: `${totalImported} registros importados de "${file_name}".`,
+      link: '/upload',
+    });
 
     return NextResponse.json({
       upload_id: upload.id,

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trophy, Banknote, AlertCircle, Hash } from 'lucide-react';
+import { ExportMenu } from '@/components/shared/export-menu';
 import { useConvenioRanking } from '@/lib/hooks/use-convenio-ranking';
 import { useECharts } from '@/lib/hooks/use-echarts';
 import { useEChartsTheme } from '@/lib/hooks/use-echarts-theme';
@@ -101,12 +102,37 @@ export default function ConvenioRankingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="mb-1 flex items-center gap-2 text-primary">
-          <Trophy className="h-5 w-5" />
-          <h1 className="text-2xl font-bold tracking-tight">Ranking de convenios</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-primary">
+            <Trophy className="h-5 w-5" />
+            <h1 className="text-2xl font-bold tracking-tight">Ranking de convenios</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">Analise de repasse e glosa por convenio.</p>
         </div>
-        <p className="text-sm text-muted-foreground">Analise de repasse e glosa por convenio.</p>
+        <ExportMenu
+          disabled={!data || data.length === 0}
+          onExportPDF={async () => {
+            if (!data) return;
+            const { exportPDF } = await import('@/lib/utils/export-pdf');
+            exportPDF({
+              title: 'Ranking de Convenios',
+              headers: ['#', 'Convenio', 'Registros', 'Valor Bruto', 'Glosa', 'Repassado'],
+              rows: data.map((r, i) => [i + 1, r.convenio, r.count, r.total_bruto, r.total_glosa, r.total_repassado]),
+              filename: 'ranking-convenios',
+            });
+          }}
+          onExportExcel={async () => {
+            if (!data) return;
+            const { exportExcel } = await import('@/lib/utils/export-excel');
+            exportExcel({
+              sheetName: 'Ranking Convenios',
+              headers: ['#', 'Convenio', 'Registros', 'Valor Bruto', 'Glosa', 'Repassado'],
+              rows: data.map((r, i) => [i + 1, r.convenio, r.count, r.total_bruto, r.total_glosa, r.total_repassado]),
+              filename: 'ranking-convenios',
+            });
+          }}
+        />
       </div>
 
       {isLoading ? (

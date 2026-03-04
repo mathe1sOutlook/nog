@@ -4,6 +4,7 @@ import { TABLES } from '@/lib/supabase/tables';
 import { requireAuth } from '@/lib/supabase/session';
 import { runMatching, type ProductionEntry, type RepasseEntry } from '@/lib/etl/matching/matcher';
 import { detectDivergences } from '@/lib/etl/analysis/divergence-detector';
+import { createNotification } from '@/lib/utils/create-notification';
 
 interface CreateConferenceBody {
   production_upload_id: string;
@@ -287,6 +288,27 @@ export async function POST(request: NextRequest) {
         completed_at: new Date().toISOString(),
       })
       .eq('id', session.id);
+
+    // 13. Generate notifications
+    await createNotification(supabase, {
+      doctorId: user.doctorId,
+      clinicId,
+      type: 'conference_completed',
+      title: 'Conferencia concluida',
+      message: `${matchingResult.matches.length} matches, ${divergenceInputs.length} divergencias encontradas.`,
+      link: `/conference/${session.id}`,
+    });
+
+    if (divergenceInputs.length > 10) {
+      await createNotification(supabase, {
+        doctorId: user.doctorId,
+        clinicId,
+        type: 'critical_divergence',
+        title: 'Divergencias criticas detectadas',
+        message: `${divergenceInputs.length} divergencias na conferencia "${session.name}". Recomenda-se revisao.`,
+        link: `/conference/${session.id}`,
+      });
+    }
 
     return NextResponse.json({
       session_id: session.id,

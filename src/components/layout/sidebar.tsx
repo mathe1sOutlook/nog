@@ -94,6 +94,15 @@ function SidebarFooter({ sidebarOpen }: { sidebarOpen: boolean }) {
             <span className="truncate">{clinicName}</span>
           </div>
         )}
+        {user?.role === 'admin' && (
+          <Link
+            href="/admin"
+            className="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-amber-400/80 transition-colors hover:bg-sidebar-accent hover:text-amber-300"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Painel admin
+          </Link>
+        )}
         <Button
           variant="ghost"
           size="sm"

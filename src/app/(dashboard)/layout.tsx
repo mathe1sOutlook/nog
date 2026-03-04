@@ -3,6 +3,7 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { SessionHydrator } from '@/components/shared/session-hydrator';
+import { ImpersonationBanner } from '@/components/shared/impersonation-banner';
 import { useAppStore } from '@/lib/stores/app-store';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   return (
     <div className="page-shell min-h-screen">
       <SessionHydrator />
+      <ImpersonationBanner />
       {sidebarOpen && (
         <button
           type="button"

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TrendingUp } from 'lucide-react';
+import { ExportMenu } from '@/components/shared/export-menu';
 import { useMonthlyData } from '@/lib/hooks/use-monthly-data';
 import { useECharts } from '@/lib/hooks/use-echarts';
 import { useEChartsTheme } from '@/lib/hooks/use-echarts-theme';
@@ -116,17 +117,49 @@ export default function MonthlyAnalyticsPage() {
           </div>
           <p className="text-sm text-muted-foreground">Acompanhe producao, repasse e divergencias ao longo do tempo.</p>
         </div>
-        <div className="flex gap-1">
-          {PERIOD_OPTIONS.map((opt) => (
-            <Button
-              key={opt.value}
-              variant={months === opt.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setMonths(opt.value)}
-            >
-              {opt.label}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {PERIOD_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                variant={months === opt.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMonths(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+          <ExportMenu
+            disabled={!data || data.length === 0}
+            onExportPDF={async () => {
+              if (!data) return;
+              const { exportPDF } = await import('@/lib/utils/export-pdf');
+              exportPDF({
+                title: 'Evolucao Mensal',
+                subtitle: `Ultimos ${months} meses`,
+                headers: ['Mes', 'Producao', 'Valor Bruto', 'Repassado', 'Divergencias', 'Match Rate'],
+                rows: data.map((r: { month: string; total_production: number; total_bruto: number; total_repassado: number; total_divergences: number; match_rate: number }) => [
+                  new Date(r.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+                  r.total_production, r.total_bruto, r.total_repassado, r.total_divergences, `${Number(r.match_rate).toFixed(1)}%`,
+                ]),
+                filename: `evolucao-mensal-${months}m`,
+              });
+            }}
+            onExportExcel={async () => {
+              if (!data) return;
+              const { exportExcel } = await import('@/lib/utils/export-excel');
+              exportExcel({
+                sheetName: 'Evolucao Mensal',
+                headers: ['Mes', 'Producao', 'Valor Bruto', 'Repassado', 'Divergencias', 'Match Rate'],
+                rows: data.map((r: { month: string; total_production: number; total_bruto: number; total_repassado: number; total_divergences: number; match_rate: number }) => [
+                  new Date(r.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+                  r.total_production, r.total_bruto, r.total_repassado, r.total_divergences, Number(r.match_rate),
+                ]),
+                filename: `evolucao-mensal-${months}m`,
+              });
+            }}
+          />
         </div>
       </div>
 
