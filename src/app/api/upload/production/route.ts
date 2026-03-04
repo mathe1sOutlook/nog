@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/supabase/tables';
-import { DEFAULT_DOCTOR_ID, DEFAULT_CLINIC_ID } from '@/lib/utils/constants';
+import { requireAuth } from '@/lib/supabase/session';
 import type { ParsedProductionRecord } from '@/lib/etl/parsers/production-parser';
 
 interface UploadProductionBody {
@@ -9,12 +9,19 @@ interface UploadProductionBody {
   records: ParsedProductionRecord[];
   periodStart: string | null;
   periodEnd: string | null;
+  clinic_id?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth();
     const body: UploadProductionBody = await request.json();
-    const { file_name, records, periodStart, periodEnd } = body;
+    const { file_name, records, periodStart, periodEnd, clinic_id } = body;
+    const clinicId = clinic_id || user.clinics[0]?.id;
+
+    if (!clinicId) {
+      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 });
+    }
 
     if (!records || records.length === 0) {
       return NextResponse.json({ error: 'No records provided' }, { status: 400 });
@@ -26,8 +33,8 @@ export async function POST(request: NextRequest) {
     const { data: upload, error: uploadError } = await supabase
       .from(TABLES.uploads)
       .insert({
-        doctor_id: DEFAULT_DOCTOR_ID,
-        clinic_id: DEFAULT_CLINIC_ID,
+        doctor_id: user.doctorId,
+        clinic_id: clinicId,
         file_type: 'production',
         file_name,
         status: 'processing',
@@ -45,8 +52,8 @@ export async function POST(request: NextRequest) {
     // 2. Insert production records (batch)
     const productionRows = records.map((r) => ({
       upload_id: upload.id,
-      doctor_id: DEFAULT_DOCTOR_ID,
-      clinic_id: DEFAULT_CLINIC_ID,
+      doctor_id: user.doctorId,
+      clinic_id: clinicId,
       row_number: r.row_number,
       service_date: r.service_date,
       patient_name: r.patient_name,
@@ -92,6 +99,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

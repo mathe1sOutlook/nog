@@ -1,11 +1,12 @@
-﻿'use client';
+'use client';
 
 import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, Activity } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 
 const pathLabels: Record<string, string> = {
   '/': 'Dashboard',
@@ -16,6 +17,9 @@ const pathLabels: Record<string, string> = {
   '/settings/tax-rules': 'Regras de impostos',
   '/settings/repasse-rules': 'Regras de repasse',
   '/settings/deductions': 'Deducoes mensais',
+  '/analytics/monthly': 'Evolucao mensal',
+  '/analytics/convenios': 'Ranking de convenios',
+  '/analytics/projection': 'Projecao financeira',
 };
 
 function getBreadcrumb(pathname: string): string {
@@ -27,9 +31,30 @@ function getBreadcrumb(pathname: string): string {
   return 'Nog';
 }
 
+function UserAvatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={avatarUrl} alt="" className="h-7 w-7 rounded-full" />
+    );
+  }
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  return (
+    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+      {initials}
+    </span>
+  );
+}
+
 export function Header() {
   const pathname = usePathname();
   const { sidebarOpen, toggleSidebar } = useAppStore();
+  const user = useAppStore((s) => s.user);
 
   const today = useMemo(
     () =>
@@ -62,10 +87,17 @@ export function Header() {
           </h1>
         </div>
 
-        <div className="ml-auto flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-          <Activity className="h-3.5 w-3.5 text-emerald-500" />
-          <span className="font-medium text-foreground/85">Otorrino DF</span>
-          <span className="text-muted-foreground/70">{today}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden text-xs text-muted-foreground sm:block">{today}</span>
+          <ThemeToggle />
+          {user && (
+            <div className="flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-2 py-1 shadow-sm">
+              <UserAvatar name={user.fullName} avatarUrl={user.avatarUrl} />
+              <span className="hidden max-w-[120px] truncate text-xs font-medium text-foreground/85 sm:block">
+                {user.fullName}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </header>

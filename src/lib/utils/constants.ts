@@ -1,9 +1,5 @@
 import type { DivergenceType, Severity, ProcedureCategory } from '@/lib/types/database';
 
-// MVP: hardcoded IDs for default doctor and clinic
-export const DEFAULT_DOCTOR_ID = '00000000-0000-0000-0000-000000000001';
-export const DEFAULT_CLINIC_ID = '00000000-0000-0000-0000-000000000001';
-
 export const DIVERGENCE_TYPE_LABELS: Record<DivergenceType, string> = {
   PRODUZIDO_SEM_REPASSE: 'Produzido sem Repasse',
   REPASSE_SEM_PRODUCAO: 'Repasse sem Produção',

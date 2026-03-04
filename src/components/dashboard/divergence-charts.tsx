@@ -1,44 +1,11 @@
-﻿'use client';
+'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DIVERGENCE_TYPE_LABELS, DIVERGENCE_TYPE_COLORS } from '@/lib/utils/constants';
+import { useECharts } from '@/lib/hooks/use-echarts';
+import { useEChartsTheme } from '@/lib/hooks/use-echarts-theme';
 import type { DivergenceType } from '@/lib/types/database';
-
-type EChartsModule = typeof import('echarts');
-let echartsModule: EChartsModule | null = null;
-
-function useECharts(
-  containerRef: React.RefObject<HTMLDivElement | null>,
-  option: Record<string, unknown>,
-) {
-  useEffect(() => {
-    let chart: ReturnType<EChartsModule['init']> | null = null;
-
-    async function initChart() {
-      if (!containerRef.current) return;
-      if (!echartsModule) {
-        echartsModule = await import('echarts');
-      }
-
-      chart = echartsModule.init(containerRef.current);
-      chart.setOption(option);
-
-      const handleResize = () => chart?.resize();
-      window.addEventListener('resize', handleResize);
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        chart?.dispose();
-      };
-    }
-
-    const cleanup = initChart();
-    return () => {
-      cleanup.then((fn) => fn?.());
-    };
-  }, [containerRef, option]);
-}
 
 interface DivergenceByTypeData {
   type: DivergenceType;
@@ -51,14 +18,21 @@ interface DivergenceByTypeChartProps {
 
 export function DivergenceByTypeChart({ data }: DivergenceByTypeChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const theme = useEChartsTheme();
 
   const option = useMemo(
     () => ({
-      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)',
+        backgroundColor: theme.tooltipBg,
+        borderColor: theme.tooltipBorder,
+        textStyle: { color: theme.isDark ? '#e5e7eb' : '#1f2a37' },
+      },
       legend: {
         bottom: 0,
         left: 'center',
-        textStyle: { fontSize: 11, color: '#5f6b7e' },
+        textStyle: { fontSize: 11, color: theme.textColor },
       },
       series: [
         {
@@ -69,14 +43,14 @@ export function DivergenceByTypeChart({ data }: DivergenceByTypeChartProps) {
           avoidLabelOverlap: true,
           label: { show: false },
           itemStyle: {
-            borderColor: 'rgba(255,255,255,0.92)',
+            borderColor: theme.borderColor,
             borderWidth: 2,
           },
           emphasis: {
             label: {
               show: true,
               fontWeight: 600,
-              color: '#1f2a37',
+              color: theme.emphasisColor,
               formatter: '{b}\n{c}',
             },
           },
@@ -88,7 +62,7 @@ export function DivergenceByTypeChart({ data }: DivergenceByTypeChartProps) {
         },
       ],
     }),
-    [data],
+    [data, theme],
   );
 
   useECharts(chartRef, option);
@@ -118,6 +92,7 @@ interface DivergenceByConvenioChartProps {
 
 export function DivergenceByConvenioChart({ data }: DivergenceByConvenioChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const theme = useEChartsTheme();
 
   const sorted = useMemo(
     () =>
@@ -129,12 +104,18 @@ export function DivergenceByConvenioChart({ data }: DivergenceByConvenioChartPro
 
   const option = useMemo(
     () => ({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: theme.tooltipBg,
+        borderColor: theme.tooltipBorder,
+        textStyle: { color: theme.isDark ? '#e5e7eb' : '#1f2a37' },
+      },
       legend: {
         bottom: 0,
         itemHeight: 8,
         itemWidth: 16,
-        textStyle: { fontSize: 11, color: '#5f6b7e' },
+        textStyle: { fontSize: 11, color: theme.textColor },
       },
       grid: { left: 136, right: 18, top: 14, bottom: 42 },
       yAxis: {
@@ -144,15 +125,15 @@ export function DivergenceByConvenioChart({ data }: DivergenceByConvenioChartPro
           fontSize: 10,
           width: 115,
           overflow: 'truncate',
-          color: '#5f6b7e',
+          color: theme.textColor,
         },
         axisLine: { show: false },
         axisTick: { show: false },
       },
       xAxis: {
         type: 'value',
-        splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.2)' } },
-        axisLabel: { color: '#748091', fontSize: 10 },
+        splitLine: { lineStyle: { color: theme.splitLineColor } },
+        axisLabel: { color: theme.textColor, fontSize: 10 },
       },
       series: [
         {
@@ -184,7 +165,7 @@ export function DivergenceByConvenioChart({ data }: DivergenceByConvenioChartPro
       ],
       animationDuration: 700,
     }),
-    [sorted],
+    [sorted, theme],
   );
 
   useECharts(chartRef, option);

@@ -30,6 +30,10 @@ export const TABLES = {
   repasseRecords: 'nog_repasse_records',
   matches: 'nog_matches',
   divergences: 'nog_divergences',
+
+  // Auth & System
+  notifications: 'nog_notifications',
+  auditLog: 'nog_audit_log',
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

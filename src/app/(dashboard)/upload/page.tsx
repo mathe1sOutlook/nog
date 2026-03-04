@@ -9,13 +9,18 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { parseProductionExcel, type ProductionParseResult } from '@/lib/etl/parsers/production-parser';
 import { parseRepasseCSV, type RepasseParseResult } from '@/lib/etl/parsers/repasse-parser';
+import { parseRepassePDF } from '@/lib/etl/parsers/repasse-pdf-parser';
 import { formatNumber, formatDateBR } from '@/lib/utils/formatting';
+import { useAppStore } from '@/lib/stores/app-store';
+import { ClinicSelector } from '@/components/upload/ClinicSelector';
 
 type ParseStatus = 'idle' | 'parsing' | 'done' | 'error';
 type ConferenceStatus = 'idle' | 'uploading' | 'matching' | 'done' | 'error';
 
 export default function UploadPage() {
   const router = useRouter();
+  const activeClinicId = useAppStore((s) => s.activeClinicId);
+  const [selectedClinicId, setSelectedClinicId] = useState<string>(activeClinicId);
   const [productionResult, setProductionResult] = useState<ProductionParseResult | null>(null);
   const [repasseResult, setRepasseResult] = useState<RepasseParseResult | null>(null);
   const [productionStatus, setProductionStatus] = useState<ParseStatus>('idle');
@@ -54,8 +59,32 @@ export default function UploadPage() {
     setError('');
 
     try {
-      const text = await file.text();
-      const result = parseRepasseCSV(text);
+      const isPDF = file.name.toLowerCase().endsWith('.pdf');
+      let result: RepasseParseResult;
+
+      if (isPDF) {
+        // PDF: send to server for text extraction, then parse locally
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/parse/repasse-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Falha ao extrair texto do PDF');
+        }
+
+        const { text } = await res.json();
+        result = parseRepassePDF(text);
+      } else {
+        // CSV: parse fully client-side
+        const text = await file.text();
+        result = parseRepasseCSV(text);
+      }
+
       setRepasseResult(result);
       setRepasseStatus('done');
     } catch (err) {
@@ -81,6 +110,7 @@ export default function UploadPage() {
           records: productionResult.records,
           periodStart: productionResult.periodStart,
           periodEnd: productionResult.periodEnd,
+          clinic_id: selectedClinicId,
         }),
       });
 
@@ -101,6 +131,7 @@ export default function UploadPage() {
           records: repasseResult.records,
           periodStart: repasseResult.periodStart,
           periodEnd: repasseResult.periodEnd,
+          clinic_id: selectedClinicId,
         }),
       });
 
@@ -121,6 +152,7 @@ export default function UploadPage() {
         body: JSON.stringify({
           production_upload_id: productionUploadId,
           repasse_upload_id: repasseUploadId,
+          clinic_id: selectedClinicId,
         }),
       });
 
@@ -143,17 +175,24 @@ export default function UploadPage() {
       setConferenceStatus('error');
       setError(`Erro na conferência: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     }
-  }, [productionResult, repasseResult, productionFile, repasseFile, router]);
+  }, [productionResult, repasseResult, productionFile, repasseFile, selectedClinicId, router]);
 
   const isConferenceRunning = conferenceStatus === 'uploading' || conferenceStatus === 'matching';
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Upload de Dados</h1>
-        <p className="text-sm text-muted-foreground">
-          Importe planilhas de produção (Excel) e relatórios de repasse (CSV)
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Upload de Dados</h1>
+          <p className="text-sm text-muted-foreground">
+            Importe planilhas de produção (Excel) e relatórios de repasse (CSV ou PDF)
+          </p>
+        </div>
+        <ClinicSelector
+          value={selectedClinicId}
+          onChange={setSelectedClinicId}
+          disabled={isConferenceRunning}
+        />
       </div>
 
       {error && (
@@ -232,18 +271,18 @@ export default function UploadPage() {
               Repasse (Clínica)
             </CardTitle>
             <CardDescription>
-              Arquivo CSV com dados do relatório de repasse
+              Relatório de repasse em CSV ou PDF
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 transition-colors hover:border-muted-foreground/50">
               <Upload className="h-8 w-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                {repasseFile || 'Clique ou arraste um arquivo .csv'}
+                {repasseFile || 'Clique ou arraste um arquivo .csv ou .pdf'}
               </span>
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.pdf"
                 className="hidden"
                 onChange={handleRepasseUpload}
                 disabled={isConferenceRunning}

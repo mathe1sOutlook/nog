@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/supabase/tables';
-import { DEFAULT_DOCTOR_ID, DEFAULT_CLINIC_ID } from '@/lib/utils/constants';
+import { requireAuth } from '@/lib/supabase/session';
 import { runMatching, type ProductionEntry, type RepasseEntry } from '@/lib/etl/matching/matcher';
 import { detectDivergences } from '@/lib/etl/analysis/divergence-detector';
 
@@ -9,12 +9,19 @@ interface CreateConferenceBody {
   production_upload_id: string;
   repasse_upload_id: string;
   name?: string;
+  clinic_id?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth();
     const body: CreateConferenceBody = await request.json();
-    const { production_upload_id, repasse_upload_id, name } = body;
+    const { production_upload_id, repasse_upload_id, name, clinic_id } = body;
+    const clinicId = clinic_id || user.clinics[0]?.id;
+
+    if (!clinicId) {
+      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 });
+    }
 
     if (!production_upload_id || !repasse_upload_id) {
       return NextResponse.json(
@@ -63,8 +70,8 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from(TABLES.conferenceSessions)
       .insert({
-        doctor_id: DEFAULT_DOCTOR_ID,
-        clinic_id: DEFAULT_CLINIC_ID,
+        doctor_id: user.doctorId,
+        clinic_id: clinicId,
         name: name || `Conferência ${new Date().toLocaleDateString('pt-BR')}`,
         status: 'matching',
         production_upload_id,
@@ -294,6 +301,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

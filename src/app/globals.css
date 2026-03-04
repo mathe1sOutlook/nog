@@ -136,6 +136,13 @@
     text-rendering: optimizeLegibility;
   }
 
+  .dark body {
+    background-image:
+      radial-gradient(circle at 8% 6%, oklch(0.25 0.04 97 / 30%), transparent 26%),
+      radial-gradient(circle at 92% 2%, oklch(0.22 0.04 200 / 25%), transparent 23%),
+      radial-gradient(circle at 82% 78%, oklch(0.20 0.05 150 / 20%), transparent 26%);
+  }
+
   ::selection {
     @apply bg-primary text-primary-foreground;
   }
@@ -159,7 +166,20 @@
     z-index: -1;
   }
 
+  .dark .page-shell::before {
+    background: linear-gradient(
+      135deg,
+      oklch(0.22 0.03 95 / 45%) 0%,
+      oklch(0.20 0.03 205 / 35%) 58%,
+      oklch(0.18 0.03 145 / 25%) 100%
+    );
+  }
+
   .soft-surface {
     @apply border border-white/30 bg-white/55 shadow-lg shadow-slate-900/5 backdrop-blur-xl;
+  }
+
+  .dark .soft-surface {
+    @apply border-white/10 bg-white/5 shadow-lg shadow-black/20 backdrop-blur-xl;
   }
 }

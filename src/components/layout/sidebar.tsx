@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   LogOut,
   ShieldCheck,
+  TrendingUp,
+  Trophy,
+  Calculator,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
@@ -31,6 +34,14 @@ const navGroups = [
     ],
   },
   {
+    label: 'Analise',
+    items: [
+      { href: '/analytics/monthly', label: 'Evolucao mensal', icon: TrendingUp },
+      { href: '/analytics/convenios', label: 'Ranking convenios', icon: Trophy },
+      { href: '/analytics/projection', label: 'Projecao financeira', icon: Calculator },
+    ],
+  },
+  {
     label: 'Cadastros',
     items: [{ href: '/convenios', label: 'Convenios', icon: Building2 }],
   },
@@ -43,6 +54,59 @@ const navGroups = [
     ],
   },
 ];
+
+function SidebarFooter({ sidebarOpen }: { sidebarOpen: boolean }) {
+  const user = useAppStore((s) => s.user);
+  const clinicName = user?.clinics[0]?.name ?? '';
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
+
+  if (!sidebarOpen) {
+    return (
+      <div className="relative border-t border-sidebar-border/70 p-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="mx-auto flex text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative border-t border-sidebar-border/70 p-3">
+      <div className="rounded-xl bg-white/5 p-3">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-300" />
+          <p className="truncate text-xs font-medium text-sidebar-foreground/90">
+            {user?.fullName ?? 'Carregando...'}
+          </p>
+        </div>
+        {clinicName && (
+          <div className="mb-3 flex items-center gap-2 text-[11px] text-sidebar-foreground/55">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span className="truncate">{clinicName}</span>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -110,44 +174,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="relative border-t border-sidebar-border/70 p-3">
-        {sidebarOpen ? (
-          <div className="rounded-xl bg-white/5 p-3">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-300" />
-              <p className="text-xs font-medium text-sidebar-foreground/90">Dra. Luana Fontana</p>
-            </div>
-            <div className="mb-3 flex items-center gap-2 text-[11px] text-sidebar-foreground/55">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Otorrino DF</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/login';
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="mx-auto flex text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' });
-              window.location.href = '/login';
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+      <SidebarFooter sidebarOpen={sidebarOpen} />
     </aside>
   );
 }
