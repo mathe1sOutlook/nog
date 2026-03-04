@@ -51,25 +51,28 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Deductions
+    // Deductions (filter by effective date range)
+    const today = new Date().toISOString().slice(0, 10);
     const { data: deductions } = await supabase
       .from(TABLES.monthlyDeductions)
       .select('amount')
       .eq('doctor_id', user.doctorId)
       .eq('clinic_id', clinicId)
-      .eq('active', true);
+      .lte('effective_from', today)
+      .or(`effective_to.is.null,effective_to.gte.${today}`);
 
     const totalDeductions = (deductions ?? []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
-    // Tax
+    // Tax (filter by effective date range)
     const { data: taxConfig } = await supabase
       .from(TABLES.taxConfigs)
-      .select('rate')
+      .select('tax_rate')
       .eq('doctor_id', user.doctorId)
       .eq('clinic_id', clinicId)
-      .eq('active', true);
+      .lte('effective_from', today)
+      .or(`effective_to.is.null,effective_to.gte.${today}`);
 
-    const taxRate = taxConfig?.[0] ? Number(taxConfig[0].rate) / 100 : 0;
+    const taxRate = taxConfig?.[0] ? Number(taxConfig[0].tax_rate) / 100 : 0;
 
     const adjustedProjected = projected.map((p) => ({
       ...p,
